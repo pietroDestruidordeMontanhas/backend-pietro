@@ -1,0 +1,8 @@
+const input = require('readline-sync')
+let Nome = input.question()
+let idade = input.question()
+let cidade = input.question()
+console.log(Nome)
+console.log(idade)
+console.log(cidade)
+console.log("eu sou o " + Nome  + " tenho " + idade + " sou de " + cidade)
