@@ -50,13 +50,50 @@ function validarTreino(corpo) {
     return null; 
 }
 
+app.get('/treinos/total', (req, res) => {
+  const resultado = db.prepare('SELECT COUNT(*) AS total FROM treinos').get();
+  res.status(200).json(resultado);
+});
+
+app.get('/treinos/resumo', (req, res) => {
+  const resultado = db.prepare(`
+    SELECT 
+      COUNT(*) AS total, 
+      IFNULL(SUM(duracao), 0) AS minutos, 
+      IFNULL(AVG(duracao), 0.0) AS media 
+    FROM treinos
+  `).get();
+  res.status(200).json(resultado);
+});
+
 // ------------------------------------------------------------
 // GET /treinos - lista todos os treinos
 // ------------------------------------------------------------
 
 app.get('/treinos', (req, res) => {
-  const treinos = db.prepare('SELECT * FROM treinos').all();
-  res.status(200).json(treinos);
+  const { minimo, busca } = req.query;
+  let sql = 'SELECT * FROM treinos';
+  const parametros = [];
+  const condicoes = [];
+
+  if (minimo !== undefined) {
+    condicoes.push('duracao >= ?');
+    parametros.push(Number(minimo));
+  }
+
+  if (busca !== undefined) {
+    condicoes.push('nome LIKE ?');
+    parametros.push(`%${busca}%`);
+  }
+
+  if (condicoes.length > 0) {
+    sql += ' WHERE ' + condicoes.join(' AND ');
+  }
+
+  sql += ' ORDER BY duracao DESC';
+
+  const treinosFiltrados = db.prepare(sql).all(...parametros);
+  res.status(200).json(treinosFiltrados);
 });
 
 
@@ -65,7 +102,13 @@ app.get('/treinos', (req, res) => {
 // ------------------------------------------------------------
 
 app.get('/treinos/:id', (req, res) => {
-  const id = Number(req.params.id);
+  const idRaw = req.params.id;
+
+  if (!/^\d+\$/.test(idRaw)) {
+    return res.status(400).json({ erro: 'O ID deve ser um numero inteiro valido.' });
+  }
+
+  const id = Number(idRaw);
   const treino = db.prepare('SELECT * FROM treinos WHERE id = ?').get(id);
 
   if (treino === undefined) {
@@ -103,7 +146,12 @@ app.post('/treinos', (req, res) => {
 // ------------------------------------------------------------
 
 app.put('/treinos/:id', (req, res) => {
-  const id = Number(req.params.id);
+  const idRaw = req.params.id;
+  if (!/^\d+\$/.test(idRaw)) {
+    return res.status(400).json({ erro: 'O ID deve ser um numero inteiro valido.' });
+  }
+
+  const id = Number(idRaw);
   const treino = db.prepare('SELECT * FROM treinos WHERE id = ?').get(id);
 
   if (treino === undefined) {
@@ -128,7 +176,12 @@ app.put('/treinos/:id', (req, res) => {
 // ------------------------------------------------------------
 
 app.delete('/treinos/:id', (req, res) => {
-  const id = Number(req.params.id);
+  const idRaw = req.params.id;
+  if (!/^\d+\$/.test(idRaw)) {
+    return res.status(400).json({ erro: 'O ID deve ser um numero inteiro valido.' });
+  }
+
+  const id = Number(idRaw);
   const treino = db.prepare('SELECT * FROM treinos WHERE id = ?').get(id);
 
   if (treino === undefined) {
